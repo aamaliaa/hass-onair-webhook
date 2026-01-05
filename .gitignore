@@ -1,0 +1,11 @@
+# Environment variables with secrets
+.env
+
+# Configured plist (contains webhook URL)
+com.user.onair.plist
+
+# State file
+.meeting_listener_state
+
+# Logs
+*.log

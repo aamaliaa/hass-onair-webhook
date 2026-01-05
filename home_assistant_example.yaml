@@ -1,0 +1,181 @@
+# Your Home Assistant Automation Configuration
+# This matches your current setup!
+
+alias: "Office light webhook"
+description: "Control office light based on Google Meet status"
+triggers:
+  - trigger: webhook
+    allowed_methods:
+      - POST
+      - PUT
+    local_only: true
+    webhook_id: "YOUR_WEBHOOK_ID_HERE"
+conditions: []
+actions:
+  - choose:
+      # Meeting Active - Turn light RED
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'meet_active' }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: light.uplight_1
+            data:
+              rgb_color: [255, 0, 0]  # Red
+              brightness: 255
+      # Meeting Inactive - Turn light OFF
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.json.event == 'meet_inactive' }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id: light.uplight_1
+mode: single
+
+  # Advanced Example - Multiple Actions
+  - id: google_meet_do_not_disturb
+    alias: "Google Meet Do Not Disturb Mode"
+    description: "Enable DND mode, mute notifications, and control multiple devices"
+    trigger:
+      - platform: webhook
+        webhook_id: google_meet_status
+    action:
+      - choose:
+          # Meeting Active
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.event == 'meet_active' }}"
+            sequence:
+              # Turn on status light (RED)
+              - service: light.turn_on
+                target:
+                  entity_id: light.office_status_light
+                data:
+                  rgb_color: [255, 0, 0]
+                  brightness: 255
+              
+              # Set input boolean for DND
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.do_not_disturb
+              
+              # Send notification to mobile
+              - service: notify.mobile_app
+                data:
+                  title: "Meeting Active"
+                  message: "You are now in a meeting"
+                  data:
+                    tag: "meeting_status"
+                    importance: low
+              
+              # Optional: Adjust smart blinds
+              # - service: cover.set_cover_position
+              #   target:
+              #     entity_id: cover.office_blinds
+              #   data:
+              #     position: 50
+              
+              # Optional: Lower music volume
+              # - service: media_player.volume_set
+              #   target:
+              #     entity_id: media_player.office_speaker
+              #   data:
+              #     volume_level: 0.2
+
+          # Meeting Inactive
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.event == 'meet_inactive' }}"
+            sequence:
+              # Turn off status light
+              - service: light.turn_off
+                target:
+                  entity_id: light.office_status_light
+              
+              # Disable DND
+              - service: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.do_not_disturb
+              
+              # Send notification
+              - service: notify.mobile_app
+                data:
+                  title: "Meeting Ended"
+                  message: "You are now available"
+                  data:
+                    tag: "meeting_status"
+
+  # Example - Time-based control (only during work hours)
+  - id: google_meet_work_hours_only
+    alias: "Google Meet Status (Work Hours Only)"
+    description: "Only control lights during work hours"
+    trigger:
+      - platform: webhook
+        webhook_id: google_meet_status
+    condition:
+      # Only trigger Monday-Friday, 8 AM to 6 PM
+      - condition: time
+        after: "08:00:00"
+        before: "18:00:00"
+        weekday:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+    action:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.event == 'meet_active' }}"
+            sequence:
+              - service: light.turn_on
+                target:
+                  entity_id: light.office_status_light
+                data:
+                  rgb_color: [255, 0, 0]
+                  brightness: 255
+        default:
+          - service: light.turn_off
+            target:
+              entity_id: light.office_status_light
+
+# Optional: Input Boolean Helper
+# Add this to enable DND tracking
+input_boolean:
+  do_not_disturb:
+    name: "Do Not Disturb"
+    icon: mdi:bell-off
+
+# Optional: Template Sensor
+# Shows current meeting status
+template:
+  - sensor:
+      - name: "Meeting Status"
+        state: >
+          {% if is_state('input_boolean.do_not_disturb', 'on') %}
+            In Meeting
+          {% else %}
+            Available
+          {% endif %}
+        icon: >
+          {% if is_state('input_boolean.do_not_disturb', 'on') %}
+            mdi:account-voice
+          {% else %}
+            mdi:account-check
+          {% endif %}
+
+# Optional: Lovelace Card Example
+# Add this to your dashboard to show meeting status
+# type: entities
+# title: Meeting Status
+# entities:
+#   - entity: input_boolean.do_not_disturb
+#     name: Do Not Disturb
+#   - entity: sensor.meeting_status
+#     name: Current Status
+#   - entity: light.office_status_light
+#     name: Status Light
+

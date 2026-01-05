@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.onair</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>REPLACE_WITH_INSTALL_PATH/listener.sh</string>
+    </array>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HA_WEBHOOK_URL</key>
+        <string>REPLACE_WITH_YOUR_WEBHOOK_URL</string>
+        <key>CHECK_INTERVAL</key>
+        <string>5</string>
+    </dict>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>REPLACE_WITH_HOME/Library/Logs/on_air_stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>REPLACE_WITH_HOME/Library/Logs/on_air_stderr.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>REPLACE_WITH_INSTALL_PATH</string>
+</dict>
+</plist>
+
