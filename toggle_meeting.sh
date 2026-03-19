@@ -9,6 +9,7 @@
 # Configuration (must match listener.sh)
 STATE_FILE="${HOME}/.meeting_listener_state"
 HA_WEBHOOK="${HA_WEBHOOK_URL:-}"
+HA_BASE="${HA_BASE_URL:-}"
 
 # Colors
 GREEN='\033[0;32m'
@@ -17,9 +18,23 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Check if Home Assistant is reachable
+is_home() {
+    if [[ -z "$HA_BASE" ]]; then
+        return 0
+    fi
+    curl -s --max-time 2 "${HA_BASE}/api/" -o /dev/null 2>/dev/null
+}
+
 # Function to send webhook
 send_webhook() {
     local event="$1"
+
+    if ! is_home; then
+        echo -e "${RED}✗ Home Assistant not reachable at ${HA_BASE}${NC}"
+        return 1
+    fi
+
     local payload="{\"event\":\"${event}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
     
     local response=$(curl -s -w "\n%{http_code}" -X POST \

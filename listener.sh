@@ -8,6 +8,7 @@
 # Configuration
 # Note: We detect meetings via Google Chrome tabs, not process names
 HA_WEBHOOK="${HA_WEBHOOK_URL:-}"
+HA_BASE="${HA_BASE_URL:-}"
 CHECK_INTERVAL="${CHECK_INTERVAL:-5}"  # Check every 5 seconds
 STATE_FILE="${HOME}/.meeting_listener_state"
 LOG_FILE="${LOG_FILE:-/tmp/meeting_listener.log}"
@@ -77,9 +78,23 @@ is_active_meeting() {
     fi
 }
 
+# Check if Home Assistant is reachable on the local network
+is_home() {
+    if [[ -z "$HA_BASE" ]]; then
+        return 0  # No base URL configured, skip check
+    fi
+    curl -s --max-time 2 "${HA_BASE}/api/" -o /dev/null 2>/dev/null
+}
+
 # Function to send webhook to Home Assistant
 send_webhook() {
-    local event="$1"    
+    local event="$1"
+
+    if ! is_home; then
+        log "INFO" "Home Assistant not reachable, skipping webhook: event=${event}"
+        return 0
+    fi
+
     # Create JSON payload with timestamp only (no sensitive meeting info)
     local payload="{\"event\":\"${event}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
     
@@ -111,6 +126,12 @@ if [[ -z "$HA_WEBHOOK" ]]; then
     echo -e "  export HA_WEBHOOK_URL='http://homeassistant.local:8123/api/webhook/YOUR_WEBHOOK_ID'"
     echo -e "${YELLOW}Or create a .env file (see .env.example)${NC}"
     exit 1
+fi
+
+if [[ -n "$HA_BASE" ]]; then
+    log "INFO" "Home reachability check: ${HA_BASE}"
+else
+    log "WARN" "HA_BASE_URL not set, skipping reachability check"
 fi
 
 log "INFO" "Webhook URL: ${HA_WEBHOOK}"
