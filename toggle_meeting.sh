@@ -8,6 +8,18 @@
 
 # Configuration (must match listener.sh)
 STATE_FILE="${HOME}/.meeting_listener_state"
+
+# Auto-load .env if env vars not set (allows calling from toolbar app or cron)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "$HA_WEBHOOK_URL" ]] && [[ -f "${SCRIPT_DIR}/.env" ]]; then
+    # shellcheck source=/dev/null
+    source "${SCRIPT_DIR}/.env"
+fi
+if [[ -z "$HA_WEBHOOK_URL" ]] && [[ -f "${HOME}/.config/onair/config" ]]; then
+    # shellcheck source=/dev/null
+    source "${HOME}/.config/onair/config"
+fi
+
 HA_WEBHOOK="${HA_WEBHOOK_URL:-}"
 HA_BASE="${HA_BASE_URL:-}"
 
@@ -65,6 +77,12 @@ if [[ -f "$STATE_FILE" ]]; then
 else
     CURRENT_STATE="INACTIVE"
 fi
+
+# Optional argument: "on" forces ACTIVE, "off" forces INACTIVE, default toggles
+case "${1:-}" in
+    on)  CURRENT_STATE="INACTIVE" ;;  # force the "turn on" path
+    off) CURRENT_STATE="ACTIVE"   ;;  # force the "turn off" path
+esac
 
 # Toggle state
 if [[ "$CURRENT_STATE" == "ACTIVE" ]]; then

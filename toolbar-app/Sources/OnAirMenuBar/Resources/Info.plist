@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>OnAirMenuBar</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.user.onair.menubar</string>
+    <key>CFBundleName</key>
+    <string>OnAir Menu Bar</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <!-- Suppress Dock icon — menu bar only -->
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <!-- Allow reading state file and running toggle script -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>OnAir Menu Bar reads the meeting state file written by listener.sh.</string>
+</dict>
+</plist>

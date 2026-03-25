@@ -1,12 +1,19 @@
 #!/bin/bash
 
 ################################################################################
-# Google Meet Meeting Listener for Home Assistant
-# Monitors Google Meet PWA and sends webhooks to control lights/status
+# Meeting Listener for Home Assistant
+# Monitors Google Meet and Zoom and sends webhooks to control lights/status
 ################################################################################
 
 # Configuration
 # Note: We detect meetings via Google Chrome tabs, not process names
+
+# Auto-load ~/.config/onair/config if env vars not set
+if [[ -z "$HA_WEBHOOK_URL" ]] && [[ -f "${HOME}/.config/onair/config" ]]; then
+    # shellcheck source=/dev/null
+    source "${HOME}/.config/onair/config"
+fi
+
 HA_WEBHOOK="${HA_WEBHOOK_URL:-}"
 HA_BASE="${HA_BASE_URL:-}"
 CHECK_INTERVAL="${CHECK_INTERVAL:-5}"  # Check every 5 seconds
@@ -31,47 +38,85 @@ log() {
 
 # Function to get the current meeting status
 get_meeting_status() {
-    # Check Google Chrome for meet.google.com tabs to detect meeting status
-    local meet_url=$(osascript 2>/dev/null <<'EOF'
+    # Check Google Chrome tabs for Google Meet and Zoom
+    local chrome_result
+    chrome_result=$(osascript 2>/dev/null <<'EOF'
         tell application "Google Chrome"
             try
                 repeat with w in windows
                     repeat with t in tabs of w
-                        if URL of t contains "meet.google.com" then
-                            return URL of t
+                        set tabURL to URL of t
+                        if tabURL contains "meet.google.com" then
+                            return "MEET:" & tabURL
+                        end if
+                        if tabURL contains "zoom.us/j/" then
+                            return "ZOOM_BROWSER"
                         end if
                     end repeat
                 end repeat
-                return "NO_MEET_TAB"
+                return "NO_TAB"
             on error
                 return "ERROR"
             end try
         end tell
 EOF
     )
-    
-    # Check if URL indicates an active meeting
-    # Meeting URLs have format: meet.google.com/abc-defg-hij
-    # Landing page is: meet.google.com/landing
-    if [[ "$meet_url" == "NO_MEET_TAB" ]]; then
-        echo "NO_MEET_TAB"
-    elif [[ "$meet_url" == "ERROR" ]]; then
+
+    # Handle Google Meet URL
+    # Meeting URLs: meet.google.com/abc-defg-hij
+    # Landing page:  meet.google.com/landing or root
+    if [[ "$chrome_result" == MEET:* ]]; then
+        local meet_url="${chrome_result#MEET:}"
+        if [[ "$meet_url" == *"/landing"* ]] || [[ "$meet_url" == "https://meet.google.com/" ]] || [[ "$meet_url" == "https://meet.google.com" ]]; then
+            echo "MEET_HOMEPAGE"
+        elif [[ "$meet_url" =~ meet\.google\.com/[a-z]{3}-[a-z]{4}-[a-z]{3} ]]; then
+            echo "MEET_ACTIVE"
+        else
+            echo "MEET_UNKNOWN"
+        fi
+        return
+    fi
+
+    # Zoom meeting open in Chrome
+    if [[ "$chrome_result" == "ZOOM_BROWSER" ]]; then
+        echo "ZOOM_ACTIVE"
+        return
+    fi
+
+    # Check native Zoom.app (works even if Chrome is not running)
+    if pgrep -xq "zoom.us"; then
+        local zoom_wins
+        zoom_wins=$(osascript 2>/dev/null <<'EOF'
+            tell application "System Events"
+                try
+                    if exists process "zoom.us" then
+                        return count of windows of process "zoom.us"
+                    end if
+                    return 0
+                on error
+                    return 0
+                end try
+            end tell
+EOF
+        )
+        # More than one window = meeting window + home screen
+        if [[ "$zoom_wins" =~ ^[0-9]+$ ]] && (( zoom_wins > 1 )); then
+            echo "ZOOM_ACTIVE"
+            return
+        fi
+    fi
+
+    if [[ "$chrome_result" == "ERROR" ]]; then
         echo "ERROR"
-    elif [[ "$meet_url" == *"/landing"* ]] || [[ "$meet_url" == "https://meet.google.com/" ]] || [[ "$meet_url" == "https://meet.google.com" ]]; then
-        echo "MEET_HOMEPAGE"
-    elif [[ "$meet_url" =~ meet\.google\.com/[a-z]{3}-[a-z]{4}-[a-z]{3} ]]; then
-        echo "MEET_ACTIVE"
     else
-        echo "MEET_UNKNOWN"
+        echo "NO_MEET_TAB"
     fi
 }
 
 # Function to determine if we're in an active meeting
 is_active_meeting() {
     local status="$1"
-    
-    # For PWA: if the app has windows, we're in a meeting
-    if [[ "$status" == "MEET_ACTIVE" ]]; then
+    if [[ "$status" == "MEET_ACTIVE" ]] || [[ "$status" == "ZOOM_ACTIVE" ]]; then
         return 0  # true - meeting is active
     else
         return 1  # false - no meeting
@@ -116,8 +161,8 @@ send_webhook() {
 }
 
 # Initialize
-log "INFO" "Starting Google Meet listener..."
-log "INFO" "Monitoring Google Chrome for meet.google.com tabs"
+log "INFO" "Starting meeting listener..."
+log "INFO" "Monitoring Google Meet and Zoom for meeting status"
 
 # Validate webhook URL is configured
 if [[ -z "$HA_WEBHOOK" ]]; then
@@ -163,28 +208,31 @@ trap cleanup SIGINT SIGTERM
 
 # Main loop
 echo -e "${GREEN}Meeting Listener is running. Press Ctrl+C to stop.${NC}"
-echo -e "${BLUE}Monitoring Google Meet PWA for meeting status changes...${NC}\n"
+echo -e "${BLUE}Monitoring Google Meet and Zoom for meeting status changes...${NC}\n"
 
 while true; do
     # Get current meeting status
     MEET_STATUS=$(get_meeting_status)
-    
+
     # Determine current status
     if [[ "$MEET_STATUS" == "NO_MEET_TAB" ]]; then
         CURRENT_STATE="INACTIVE"
-        STATUS_TEXT="No Google Meet tab open"
+        STATUS_TEXT="No active meeting detected"
     elif [[ "$MEET_STATUS" == "MEET_HOMEPAGE" ]]; then
         CURRENT_STATE="INACTIVE"
         STATUS_TEXT="Google Meet open (not in meeting)"
+    elif [[ "$MEET_STATUS" == "ZOOM_ACTIVE" ]]; then
+        CURRENT_STATE="ACTIVE"
+        STATUS_TEXT="In Zoom meeting"
     elif [[ "$MEET_STATUS" == "ERROR" ]]; then
         CURRENT_STATE="ERROR"
-        STATUS_TEXT="Error checking Google Meet status"
+        STATUS_TEXT="Error checking meeting status"
     elif is_active_meeting "$MEET_STATUS"; then
         CURRENT_STATE="ACTIVE"
-        STATUS_TEXT="In meeting (detected via URL)"
+        STATUS_TEXT="In Google Meet meeting"
     else
         CURRENT_STATE="INACTIVE"
-        STATUS_TEXT="Google Meet status unclear"
+        STATUS_TEXT="Meeting status unclear"
     fi
     
     # Check if state changed
@@ -217,5 +265,9 @@ while true; do
         printf "\r${BLUE}Status:${NC} %-80s" "$STATUS_TEXT"
     fi
     
+    # Touch the state file every iteration so the toolbar never sees stale state
+    # (the 30s staleness window exists to catch listener crashes, not quiet periods)
+    [[ "$CURRENT_STATE" != "ERROR" ]] && [[ -f "$STATE_FILE" ]] && touch "$STATE_FILE"
+
     sleep "$CHECK_INTERVAL"
 done

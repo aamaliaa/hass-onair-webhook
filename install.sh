@@ -17,29 +17,38 @@ DEST_PLIST="$HOME/Library/LaunchAgents/com.user.onair.plist"
 
 echo -e "${BLUE}Installing On-Air Auto-Start${NC}\n"
 
-# Check if user has configured their plist
+# Read webhook URL from ~/.config/onair/config if available
+CONFIG_FILE="${HOME}/.config/onair/config"
+WEBHOOK_FROM_CONFIG=""
+if [[ -f "$CONFIG_FILE" ]]; then
+    WEBHOOK_FROM_CONFIG=$(grep -E "^[[:space:]]*HA_WEBHOOK_URL[[:space:]]*=" "$CONFIG_FILE" \
+        | tail -1 \
+        | sed -E "s/^[[:space:]]*HA_WEBHOOK_URL[[:space:]]*=[[:space:]]*//" \
+        | sed "s/^['\"]//; s/['\"]$//")
+fi
+
+# Create plist from template if it doesn't exist
 if [ ! -f "$PLIST_FILE" ]; then
-    echo -e "${YELLOW}No configuration found. Creating from template...${NC}"
     if [ ! -f "$PLIST_EXAMPLE" ]; then
         echo -e "${RED}Error: Template file not found: $PLIST_EXAMPLE${NC}"
         exit 1
     fi
-    # Create plist from template with paths already substituted
     sed -e "s|REPLACE_WITH_INSTALL_PATH|${SCRIPT_DIR}|g" \
         -e "s|REPLACE_WITH_HOME|${HOME}|g" \
         "$PLIST_EXAMPLE" > "$PLIST_FILE"
-    echo -e "${GREEN}✓ Created configuration file: $PLIST_FILE${NC}"
-    echo -e "${YELLOW}⚠ Please edit $PLIST_FILE and set your webhook URL${NC}"
-    echo -e "${YELLOW}  Change: REPLACE_WITH_YOUR_WEBHOOK_URL${NC}"
-    echo -e "${YELLOW}  To: http://homeassistant.local:8123/api/webhook/YOUR_WEBHOOK_ID${NC}"
-    echo -e "\n${BLUE}Then run ./install.sh again${NC}"
-    exit 1
+    echo -e "${GREEN}✓ Created $PLIST_FILE${NC}"
 fi
 
-# Validate the plist has been configured
+# Auto-populate webhook URL from config file if the plist still has the placeholder
+if grep -q "REPLACE_WITH_YOUR_WEBHOOK_URL" "$PLIST_FILE" && [[ -n "$WEBHOOK_FROM_CONFIG" ]]; then
+    sed -i '' "s|REPLACE_WITH_YOUR_WEBHOOK_URL|${WEBHOOK_FROM_CONFIG}|g" "$PLIST_FILE"
+    echo -e "${GREEN}✓ Webhook URL set from ~/.config/onair/config${NC}"
+fi
+
+# Validate
 if grep -q "REPLACE_WITH_YOUR_WEBHOOK_URL" "$PLIST_FILE"; then
-    echo -e "${RED}Error: Please configure $PLIST_FILE first${NC}"
-    echo -e "${YELLOW}Replace REPLACE_WITH_YOUR_WEBHOOK_URL with your actual webhook URL${NC}"
+    echo -e "${RED}Error: Webhook URL not configured.${NC}"
+    echo -e "${YELLOW}Set HA_WEBHOOK_URL in ~/.config/onair/config or edit $PLIST_FILE directly, then run ./install.sh again.${NC}"
     exit 1
 fi
 
