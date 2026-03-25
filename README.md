@@ -59,7 +59,8 @@ A shell script plugin for [SwiftBar](https://swiftbar.app). Works on managed/Jam
 
 ```bash
 git clone <repo-url> && cd hass-onair-webhook
-brew install swiftbar
+brew install --cask swiftbar
+mkdir -p ~/Library/Application\ Support/SwiftBar/Plugins
 ln -s "$(pwd)/swiftbar/onair.1s.sh" \
   ~/Library/Application\ Support/SwiftBar/Plugins/onair.1s.sh
 ./install.sh

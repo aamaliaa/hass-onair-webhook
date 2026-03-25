@@ -15,6 +15,10 @@ if [[ -z "$HA_WEBHOOK_URL" ]] && [[ -f "${SCRIPT_DIR}/.env" ]]; then
     # shellcheck source=/dev/null
     source "${SCRIPT_DIR}/.env"
 fi
+if [[ -z "$HA_WEBHOOK_URL" ]] && [[ -f "${HOME}/.config/onair/config" ]]; then
+    # shellcheck source=/dev/null
+    source "${HOME}/.config/onair/config"
+fi
 
 HA_WEBHOOK="${HA_WEBHOOK_URL:-}"
 HA_BASE="${HA_BASE_URL:-}"

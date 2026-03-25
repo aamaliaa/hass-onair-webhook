@@ -7,6 +7,13 @@
 
 # Configuration
 # Note: We detect meetings via Google Chrome tabs, not process names
+
+# Auto-load ~/.config/onair/config if env vars not set
+if [[ -z "$HA_WEBHOOK_URL" ]] && [[ -f "${HOME}/.config/onair/config" ]]; then
+    # shellcheck source=/dev/null
+    source "${HOME}/.config/onair/config"
+fi
+
 HA_WEBHOOK="${HA_WEBHOOK_URL:-}"
 HA_BASE="${HA_BASE_URL:-}"
 CHECK_INTERVAL="${CHECK_INTERVAL:-5}"  # Check every 5 seconds
