@@ -1,11 +1,13 @@
 # hass-onair-webhook
 
-A macOS shell script that monitors Google Meet and sends webhooks to Home Assistant when meetings start or end. Use it to control an "on air" light, enable Do Not Disturb mode, or trigger any automation.
+A macOS tool that monitors Google Meet and Zoom and sends webhooks to Home Assistant when meetings start or end. Use it to control an "on air" light, enable Do Not Disturb mode, or trigger any automation.
+
+Includes an optional native menu bar app that shows your meeting status and lets you toggle it with a click.
 
 ## Requirements
 
 - macOS (tested on Sonoma+)
-- Google Chrome with Google Meet
+- Google Chrome with Google Meet and/or the Zoom app
 - Home Assistant with a webhook automation
 
 ## Quick Start
@@ -20,15 +22,27 @@ cp .env.example .env
 
 To uninstall: `./uninstall.sh`
 
-## Manual Toggle
+## Menu Bar App (optional)
 
-For non-Google Meet calls (Zoom, Teams, phone):
+A native Swift/SwiftUI menu bar app that shows your meeting status as a camera icon and lets you toggle it with a click. Requires Xcode or the Swift toolchain.
 
 ```bash
-./toggle_meeting.sh
+./install-toolbar.sh
 ```
 
-Run again to toggle back.
+This builds the app, installs it to `~/Applications/OnAirMenuBar.app`, and optionally launches it. The icon turns red when you're on-air and grey when you're not. The "Toggle Meeting Status" menu item calls `toggle_meeting.sh` directly.
+
+The app watches `~/.meeting_listener_state` via FSEvents and updates within ~1 second whenever `listener.sh` changes the state.
+
+## Manual Toggle
+
+For meetings not automatically detected (Teams, phone calls, etc.):
+
+```bash
+./toggle_meeting.sh        # toggle between on/off
+./toggle_meeting.sh on     # force on-air
+./toggle_meeting.sh off    # force not-in-meeting
+```
 
 ## Home Assistant Setup
 
