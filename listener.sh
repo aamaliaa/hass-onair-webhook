@@ -265,5 +265,9 @@ while true; do
         printf "\r${BLUE}Status:${NC} %-80s" "$STATUS_TEXT"
     fi
     
+    # Touch the state file every iteration so the toolbar never sees stale state
+    # (the 30s staleness window exists to catch listener crashes, not quiet periods)
+    [[ "$CURRENT_STATE" != "ERROR" ]] && [[ -f "$STATE_FILE" ]] && touch "$STATE_FILE"
+
     sleep "$CHECK_INTERVAL"
 done
