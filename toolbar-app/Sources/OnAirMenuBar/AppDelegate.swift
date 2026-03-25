@@ -19,12 +19,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - UI
 
     private func refreshUI() {
-        let state = stateManager.state
-        updateButton(state)
-        statusItem.menu = buildMenu(state)
+        if stateManager.isConfigured {
+            updateButton(for: stateManager.state)
+            statusItem.menu = buildMenu(configured: true)
+        } else {
+            updateButtonUnconfigured()
+            statusItem.menu = buildMenu(configured: false)
+        }
     }
 
-    private func updateButton(_ state: MeetingState) {
+    private func updateButton(for state: MeetingState) {
         guard let button = statusItem.button else { return }
 
         let symbolName: String
@@ -45,36 +49,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.image?.isTemplate = (state != .active)
     }
 
-    private func buildMenu(_ state: MeetingState) -> NSMenu {
+    private func updateButtonUnconfigured() {
+        guard let button = statusItem.button else { return }
+        let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+            .applying(.init(paletteColors: [.systemOrange]))
+        button.image = NSImage(
+            systemSymbolName: "exclamationmark.triangle.fill",
+            accessibilityDescription: "Setup required"
+        )?.withSymbolConfiguration(config)
+        button.image?.isTemplate = false
+    }
+
+    private func buildMenu(configured: Bool) -> NSMenu {
         let menu = NSMenu()
 
-        let statusLabel = NSMenuItem(title: state.label, action: nil, keyEquivalent: "")
-        statusLabel.isEnabled = false
-        menu.addItem(statusLabel)
+        if configured {
+            let statusLabel = NSMenuItem(title: stateManager.state.label, action: nil, keyEquivalent: "")
+            statusLabel.isEnabled = false
+            menu.addItem(statusLabel)
+            menu.addItem(.separator())
+
+            let toggleItem = NSMenuItem(
+                title: "Toggle Meeting Status",
+                action: #selector(toggleMeeting),
+                keyEquivalent: "t"
+            )
+            toggleItem.target = self
+            menu.addItem(toggleItem)
+        } else {
+            let warning = NSMenuItem(title: "Setup Required", action: nil, keyEquivalent: "")
+            warning.isEnabled = false
+            menu.addItem(warning)
+
+            let hint = NSMenuItem(
+                title: "Open Configuration to get started",
+                action: #selector(openConfiguration),
+                keyEquivalent: ","
+            )
+            hint.target = self
+            menu.addItem(hint)
+        }
+
         menu.addItem(.separator())
 
-        let toggleItem = NSMenuItem(
-            title: "Toggle Meeting Status",
-            action: #selector(toggleMeeting),
-            keyEquivalent: "t"
-        )
-        toggleItem.target = self
-        menu.addItem(toggleItem)
-        menu.addItem(.separator())
-
-        // ── Configuration ─────────────────────────────────────────────────────
-        let openCfg = NSMenuItem(
-            title: "Open Configuration",
-            action: #selector(openConfiguration),
-            keyEquivalent: ","          // Cmd+,  (standard macOS preferences shortcut)
-        )
-        openCfg.target = self
-        menu.addItem(openCfg)
+        // ── Configuration ──────────────────────────────────────────────────────
+        if configured {
+            let openCfg = NSMenuItem(
+                title: "Open Configuration",
+                action: #selector(openConfiguration),
+                keyEquivalent: ","          // Cmd+,  (standard macOS preferences shortcut)
+            )
+            openCfg.target = self
+            menu.addItem(openCfg)
+        }
 
         let reloadCfg = NSMenuItem(
             title: "Reload Configuration",
             action: #selector(reloadConfiguration),
-            keyEquivalent: "r"          // Cmd+R
+            keyEquivalent: "r"              // Cmd+R
         )
         reloadCfg.target = self
         menu.addItem(reloadCfg)

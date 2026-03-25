@@ -81,10 +81,19 @@ final class ConfigManager {
         let template = """
         # OnAir Menu Bar – configuration
         # https://github.com/aamaliaa/hass-onair-webhook
+        #
+        # Edit this file, save, and the app reloads automatically.
+        # Run `./install-toolbar.sh` from the repo to (re)install the app.
 
-        # Path to the hass-onair-webhook scripts directory (required).
-        # The toolbar uses this to find toggle_meeting.sh.
+        # Path to the hass-onair-webhook repo clone (required).
         # ONAIR_SCRIPT_DIR=~/hass-onair-webhook
+
+        # Home Assistant webhook URL (required).
+        # Create a webhook automation in HA and paste its ID here.
+        # HA_WEBHOOK_URL=http://homeassistant.local:8123/api/webhook/YOUR_WEBHOOK_ID
+
+        # Home Assistant base URL — used to skip webhooks when you're away (optional).
+        # HA_BASE_URL=http://homeassistant.local:8123
         """
         try? template.write(to: url, atomically: true, encoding: .utf8)
     }

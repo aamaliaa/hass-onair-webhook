@@ -24,15 +24,32 @@ To uninstall: `./uninstall.sh`
 
 ## Menu Bar App (optional)
 
-A native Swift/SwiftUI menu bar app that shows your meeting status as a camera icon and lets you toggle it with a click. Requires Xcode or the Swift toolchain.
+A native macOS menu bar app that shows your on-air status as a camera icon and lets you toggle it with a click. Requires Xcode or the Swift toolchain.
 
+**Install:**
 ```bash
 ./install-toolbar.sh
 ```
 
-This builds the app, installs it to `~/Applications/OnAirMenuBar.app`, and optionally launches it. The icon turns red when you're on-air and grey when you're not. The "Toggle Meeting Status" menu item calls `toggle_meeting.sh` directly.
+**Configure** — press **Cmd+,** (or click the icon → "Open Configuration") to open `~/.config/onair/config`:
 
-The app watches `~/.meeting_listener_state` via FSEvents and updates within ~1 second whenever `listener.sh` changes the state.
+```ini
+# Path to your hass-onair-webhook clone
+ONAIR_SCRIPT_DIR=~/hass-onair-webhook
+
+# Home Assistant webhook URL
+HA_WEBHOOK_URL=http://homeassistant.local:8123/api/webhook/YOUR_WEBHOOK_ID
+
+# Optional: skip webhooks when HA is unreachable (e.g. away from home)
+# HA_BASE_URL=http://homeassistant.local:8123
+```
+
+Save the file — the app reloads automatically. If `ONAIR_SCRIPT_DIR` isn't set yet, the icon shows an orange warning triangle until you do.
+
+The icon turns **red** when you're on-air and **grey** when you're not. It updates within ~1 second of any state change from `listener.sh`.
+
+> **Cmd+,** — Open Configuration
+> **Cmd+R** — Reload Configuration (manual re-read)
 
 ## Manual Toggle
 

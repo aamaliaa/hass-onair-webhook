@@ -61,17 +61,26 @@ final class MeetingStateManager {
 
     // MARK: - Toggle
 
+    /// True when toggle_meeting.sh can be located. Used by AppDelegate to show
+    /// a "Setup Required" warning when the user hasn't configured ONAIR_SCRIPT_DIR.
+    var isConfigured: Bool { findToggleScript() != nil }
+
     func toggle() {
         guard let scriptPath = findToggleScript() else {
-            NSLog("OnAirMenuBar: toggle_meeting.sh not found — set ONAIR_SCRIPT_DIR in .env")
+            NSLog("OnAirMenuBar: toggle_meeting.sh not found — set ONAIR_SCRIPT_DIR in ~/.config/onair/config")
             return
         }
+        // Snapshot config values now so the background thread doesn't race with a reload
+        let configEnv = config.settings.filter { ["HA_WEBHOOK_URL", "HA_BASE_URL"].contains($0.key) }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/bin/bash")
             task.arguments = [scriptPath]
-            // Pass through current environment; toggle_meeting.sh auto-sources .env
-            task.environment = ProcessInfo.processInfo.environment
+            // Config-file values override the inherited environment; toggle_meeting.sh
+            // falls back to sourcing .env for anything still unset.
+            var env = ProcessInfo.processInfo.environment
+            for (key, value) in configEnv { env[key] = value }
+            task.environment = env
             try? task.run()
             task.waitUntilExit()
             DispatchQueue.main.async { self?.reloadState() }
