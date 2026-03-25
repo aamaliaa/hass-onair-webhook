@@ -55,6 +55,17 @@ fi
 
 echo ""
 
+# ── Install listener ──────────────────────────────────────────────────────────
+
+echo "── Installing listener (auto-start on login) ────────────────────────────────"
+if ! "${SCRIPT_DIR}/install.sh"; then
+    echo ""
+    echo "Note: finish configuring the listener by editing com.user.onair.plist,"
+    echo "then run ./install.sh (or ./install-toolbar.sh again)."
+fi
+
+echo ""
+
 # ── Launch ────────────────────────────────────────────────────────────────────
 
 read -r -p "Launch the app now? [y/N] " reply
