@@ -18,12 +18,14 @@ final class MeetingStateManager {
     private(set) var state: MeetingState = .unknown
     var onChange: (() -> Void)?
 
+    private let config: ConfigManager
     private let stateFile = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".meeting_listener_state")
     private var fileSource: DispatchSourceFileSystemObject?
     private var dirSource: DispatchSourceFileSystemObject?
 
-    init() {
+    init(config: ConfigManager) {
+        self.config = config
         reloadState()
         startWatching()
     }
@@ -80,13 +82,19 @@ final class MeetingStateManager {
         let fm = FileManager.default
         let home = NSHomeDirectory()
 
-        // 1. Explicit override
+        // 1. Config file setting (highest priority — user-editable)
+        if let dir = config.settings["ONAIR_SCRIPT_DIR"] {
+            let path = (dir as NSString).appendingPathComponent("toggle_meeting.sh")
+            if fm.isExecutableFile(atPath: path) { return path }
+        }
+
+        // 2. Environment variable override (e.g. set at launch time)
         if let dir = ProcessInfo.processInfo.environment["ONAIR_SCRIPT_DIR"] {
             let path = (dir as NSString).appendingPathComponent("toggle_meeting.sh")
             if fm.isExecutableFile(atPath: path) { return path }
         }
 
-        // 2. Common install locations
+        // 3. Common install locations
         let candidates = [
             "\(home)/.hass-onair-webhook/toggle_meeting.sh",
             "\(home)/hass-onair-webhook/toggle_meeting.sh",
