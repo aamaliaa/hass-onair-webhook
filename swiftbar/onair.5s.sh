@@ -8,38 +8,32 @@
 # <swiftbar.hideLastUpdated>true</swiftbar.hideLastUpdated>
 #
 # Installation:
-#   1. Install SwiftBar: brew install swiftbar
+#   1. Install SwiftBar: brew install --cask swiftbar
 #   2. Copy (or symlink) this file into your SwiftBar plugins folder:
-#        ln -s /path/to/hass-onair-webhook/swiftbar/onair.1s.sh ~/Library/Application\ Support/SwiftBar/Plugins/
-#   3. Make sure it's executable: chmod +x onair.1s.sh
+#        mkdir -p ~/Library/Application\ Support/SwiftBar/Plugins
+#        ln -s /path/to/hass-onair-webhook/swiftbar/onair.5s.sh ~/Library/Application\ Support/SwiftBar/Plugins/
+#   3. Make sure it's executable: chmod +x onair.5s.sh
 #   4. Set ONAIR_SCRIPT_DIR in ~/.config/onair/config (use "Open Configuration…" in the menu)
 
 STATE_FILE="${HOME}/.meeting_listener_state"
 CONFIG_FILE="${HOME}/.config/onair/config"
 
-# Absolute path to this script — used for self-invocation by menu item actions.
-PLUGIN_SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+# $0 is already an absolute path when invoked by SwiftBar.
+PLUGIN_SCRIPT="$0"
 
-# ── Parse a single KEY=VALUE from the config file ─────────────────────────────
-read_config() {
-    local key="$1"
-    [[ ! -f "$CONFIG_FILE" ]] && return
-    grep -E "^[[:space:]]*${key}[[:space:]]*=" "$CONFIG_FILE" \
-        | tail -1 \
-        | sed -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//" \
-        | sed "s/^['\"]//; s/['\"]$//" \
-        | sed "s|^~/|${HOME}/|"
-}
+# Source config once — sets ONAIR_SCRIPT_DIR, HA_WEBHOOK_URL, HA_BASE_URL, etc.
+# shellcheck source=/dev/null
+[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
 
 # ── Locate toggle_meeting.sh ──────────────────────────────────────────────────
 find_toggle_script() {
     local candidates=(
-        "$(read_config ONAIR_SCRIPT_DIR)/toggle_meeting.sh"
+        "${ONAIR_SCRIPT_DIR}/toggle_meeting.sh"
         "${HOME}/.hass-onair-webhook/toggle_meeting.sh"
         "${HOME}/hass-onair-webhook/toggle_meeting.sh"
         "${HOME}/Projects/hass-onair-webhook/toggle_meeting.sh"
         "${HOME}/Developer/hass-onair-webhook/toggle_meeting.sh"
-        "$(dirname "$0")/toggle_meeting.sh"  # plugin placed next to the repo
+        "${0%/*}/toggle_meeting.sh"  # plugin placed next to the repo
     )
     for p in "${candidates[@]}"; do
         [[ -x "$p" ]] && { echo "$p"; return; }
@@ -54,8 +48,7 @@ case "${1:-}" in
     --toggle)
         TOGGLE_SCRIPT="$(find_toggle_script)"
         [[ -z "$TOGGLE_SCRIPT" ]] && exit 1
-        HA_WEBHOOK_URL="$(read_config HA_WEBHOOK_URL)" \
-        HA_BASE_URL="$(read_config HA_BASE_URL)" \
+        # toggle_meeting.sh sources ~/.config/onair/config itself
         exec "$TOGGLE_SCRIPT"
         ;;
 
