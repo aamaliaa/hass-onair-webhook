@@ -206,11 +206,24 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
+# Returns true if the display is currently on (power state 4 = fully on)
+is_display_on() {
+    ioreg -n IODisplayWrangler -r | grep -q '"CurrentPowerState" = 4'
+}
+
 # Main loop
 echo -e "${GREEN}Meeting Listener is running. Press Ctrl+C to stop.${NC}"
 echo -e "${BLUE}Monitoring Google Meet and Zoom for meeting status changes...${NC}\n"
 
 while true; do
+    # Skip polling while the display is off — no point checking tabs when nobody
+    # is at the machine. State file touch is also skipped, so the toolbar will
+    # show "?" after 30s, which is correct (we don't know if a meeting is active).
+    if ! is_display_on; then
+        sleep "$CHECK_INTERVAL"
+        continue
+    fi
+
     # Get current meeting status
     MEET_STATUS=$(get_meeting_status)
 
