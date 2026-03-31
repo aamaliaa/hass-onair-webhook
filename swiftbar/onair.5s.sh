@@ -77,6 +77,10 @@ EOF
         ;;
 esac
 
+# Exit early when the display is off — no point refreshing a menu bar nobody
+# can see. SwiftBar keeps showing the last cached output automatically.
+ioreg -n IODisplayWrangler -r | grep -q '"CurrentPowerState" = 4' || exit 0
+
 # ── Read current state ────────────────────────────────────────────────────────
 # Treat state as UNKNOWN if the file is missing or stale (>30 s), mirroring
 # the logic in listener.sh and the native toolbar app.
